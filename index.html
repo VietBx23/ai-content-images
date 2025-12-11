@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Static Site Generator</title>
+    <!-- We keep Tailwind CDN for simplicity to avoid complex PostCSS setup, 
+         but for production usually you would install it via npm -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Import Google Fonts for better typography -->
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
@@ -29,7 +30,7 @@
                 950: '#082f49',
               },
               accent: {
-                500: '#6366f1', // Indigo
+                500: '#6366f1',
                 600: '#4f46e5',
               }
             },
@@ -52,36 +53,29 @@
         }
       }
     </script>
+    <style>
+      ::-webkit-scrollbar { width: 8px; }
+      ::-webkit-scrollbar-track { background: #f1f5f9; }
+      ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+      ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
 <script type="importmap">
 {
   "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.1/",
-    "react": "https://aistudiocdn.com/react@^19.2.1",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.32.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.556.0",
-    "jszip": "https://aistudiocdn.com/jszip@^3.10.1"
+    "react-dom/": "https://esm.sh/react-dom@^19.2.1/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.559.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.32.0",
+    "react/": "https://esm.sh/react@^19.2.1/",
+    "react": "https://esm.sh/react@^19.2.1",
+    "vite": "https://esm.sh/vite@^7.2.7",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "jszip": "https://esm.sh/jszip@^3.10.1"
   }
 }
 </script>
-<style>
-  /* Custom scrollbar */
-  ::-webkit-scrollbar {
-    width: 8px;
-  }
-  ::-webkit-scrollbar-track {
-    background: #f1f5f9; 
-  }
-  ::-webkit-scrollbar-thumb {
-    background: #cbd5e1; 
-    border-radius: 4px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8; 
-  }
-</style>
 </head>
 <body class="bg-slate-50 text-slate-900 antialiased font-sans selection:bg-brand-200 selection:text-brand-900">
     <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>
