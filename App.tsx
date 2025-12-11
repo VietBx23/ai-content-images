@@ -34,6 +34,7 @@ export default function App() {
       if (content.imagePrompts && content.imagePrompts.length > 0) {
         setLoadingImages(true);
         // Limit to 3 images as requested
+        // FIX: Explicitly typed 'prompt' as string and 'err' as any to fix TS build error
         const imagePromises = content.imagePrompts.slice(0, 3).map((prompt: string) => 
            generateIllustration(prompt).catch((err: any) => {
              console.error("图片生成失败:", prompt, err);
@@ -62,11 +63,23 @@ export default function App() {
       const zip = new JSZip();
       const docTitle = title.trim();
       const targetUrl = redirectUrl.trim();
+      
+      // Generate a clean slug for filenames (e.g., "My Title" -> "my-title")
+      // This makes image filenames standard and SEO friendly
+      const fileSlug = docTitle
+        .toLowerCase()
+        .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-') // Allow Chinese characters and alphanumeric
+        .replace(/^-+|-+$/g, '') || 'image';
 
       // --- 1. IMAGES ---
+      // Map to store new filenames for reference in HTML/MD
+      const imageFilenames: string[] = [];
+
       if (generatedImages.length > 0) {
         generatedImages.forEach((imgDataUrl, idx) => {
-           const fileName = `vp${idx + 1}.png`; 
+           // New naming convention: slug-index.png (e.g., ai-trends-1.png)
+           const fileName = `${fileSlug}-${idx + 1}.png`; 
+           imageFilenames.push(fileName);
            const data = imgDataUrl.split(',')[1];
            zip.file(fileName, data, {base64: true});
         });
@@ -112,9 +125,9 @@ export default function App() {
         
         <!-- Image Grid -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12">
-            ${generatedImages.map((_, i) => `
+            ${imageFilenames.map((fileName, i) => `
             <figure class="rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
-                <img src="./vp${i+1}.png" class="w-full h-48 object-cover hover:scale-105 transition-transform duration-500" alt="${docTitle} 插图 ${i+1}">
+                <img src="./${fileName}" class="w-full h-48 object-cover hover:scale-105 transition-transform duration-500" alt="${docTitle} 插图 ${i+1}">
             </figure>
             `).join('')}
         </div>
@@ -146,28 +159,59 @@ export default function App() {
       
       // --- 3. README.md ---
       let readmeContent = `# [${docTitle}](${targetUrl})\n\n`;
-      // Added CTA link below title
       readmeContent += `[👉 点击此处阅读完整详情](${targetUrl})\n\n`; 
       readmeContent += `> ${data.introduction}\n\n`;
-      if (generatedImages.length > 0) readmeContent += `![${docTitle} 1](./vp1.png)\n\n`;
+      
+      if (imageFilenames.length > 0) {
+          readmeContent += `![${docTitle} 1](./${imageFilenames[0]})\n\n`;
+      }
+      
       data.sections.forEach((section, idx) => {
         readmeContent += `## ${section.heading}\n\n${section.content}\n\n`;
-        if (generatedImages.length > idx + 1) readmeContent += `![${docTitle} ${idx + 2}](./vp${idx + 2}.png)\n\n`;
+        // Insert subsequent images if available
+        if (imageFilenames.length > idx + 1) {
+            readmeContent += `![${docTitle} ${idx + 2}](./${imageFilenames[idx + 1]})\n\n`;
+        }
       });
       readmeContent += `## 结论\n\n${data.conclusion}\n\n---\n\n[阅读全文](${targetUrl})`;
       zip.file("README.md", readmeContent);
 
       // --- 4. EXTRAS ---
-      zip.file("LICENSE", "MIT License..."); // Shortened for brevity in code block
-      zip.file(".gitignore", "node_modules/\ndist/");
+      // Full MIT License
+      const currentYear = new Date().getFullYear();
+      const fullLicense = `MIT License
+
+Copyright (c) ${currentYear} Generated via AI Content Generator
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.`;
+      
+      zip.file("LICENSE", fullLicense);
+      zip.file(".gitignore", "node_modules/\ndist/\n.DS_Store");
       zip.file("robots.txt", "User-agent: *\nAllow: /\nSitemap: sitemap.xml");
-      zip.file("sitemap.xml", `<?xml version="1.0" encoding="UTF-8"?><urlset><url><loc>${targetUrl}</loc></url></urlset>`);
+      zip.file("sitemap.xml", `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${targetUrl}</loc></url></urlset>`);
 
       // --- 5. GENERATE ---
       const content = await zip.generateAsync({type:"blob"});
       const link = document.createElement('a');
       link.href = URL.createObjectURL(content);
-      link.download = `${docTitle.replace(/[^a-z0-9\u4e00-\u9fa5]/gi, '_')}.zip`;
+      // Clean filename for the zip itself
+      link.download = `${fileSlug}.zip`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
