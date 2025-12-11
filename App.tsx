@@ -34,8 +34,8 @@ export default function App() {
       if (content.imagePrompts && content.imagePrompts.length > 0) {
         setLoadingImages(true);
         // Limit to 3 images as requested
-        const imagePromises = content.imagePrompts.slice(0, 3).map(prompt => 
-           generateIllustration(prompt).catch(err => {
+        const imagePromises = content.imagePrompts.slice(0, 3).map((prompt: string) => 
+           generateIllustration(prompt).catch((err: any) => {
              console.error("图片生成失败:", prompt, err);
              return null; 
            })

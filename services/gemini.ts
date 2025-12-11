@@ -1,4 +1,5 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { GeneratedData } from "../types";
 
 // Initialize Gemini Client
 // IMPORTANT: process.env.API_KEY must be set in your environment
@@ -31,7 +32,7 @@ const contentSchema: Schema = {
   required: ["title", "introduction", "sections", "conclusion", "imagePrompts"]
 };
 
-export const generatePageContent = async (userTitle: string) => {
+export const generatePageContent = async (userTitle: string): Promise<GeneratedData> => {
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -53,7 +54,7 @@ export const generatePageContent = async (userTitle: string) => {
       throw new Error("Gemini 未返回任何文本。");
     }
 
-    return JSON.parse(response.text);
+    return JSON.parse(response.text) as GeneratedData;
   } catch (error) {
     console.error("Content generation error:", error);
     throw error;
