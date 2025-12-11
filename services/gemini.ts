@@ -8,7 +8,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 const contentSchema: Schema = {
   type: Type.OBJECT,
   properties: {
-    title: { type: Type.STRING, description: "Optimization of the user title for article context (but user input title will be used for H1)." },
+    title: { type: Type.STRING, description: "Optimization of the user title for article context." },
     introduction: { type: Type.STRING, description: "A comprehensive and engaging introduction (100-150 words) in Simplified Chinese." },
     sections: {
       type: Type.ARRAY,
@@ -81,8 +81,13 @@ export const generateIllustration = async (prompt: string): Promise<string | nul
     }
     return null;
 
-  } catch (error) {
-    console.error("Image generation error:", error);
+  } catch (error: any) {
+    // Specifically log 429 errors for debugging
+    if (error.message && error.message.includes('429')) {
+         console.warn("Image generation hit rate limit (429). Skipping this image.", prompt);
+    } else {
+         console.error("Image generation error:", error);
+    }
     // Return null so the UI can handle partial failures gracefully
     return null;
   }

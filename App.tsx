@@ -14,6 +14,7 @@ export default function App() {
   const [loadingImages, setLoadingImages] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isZipping, setIsZipping] = useState(false);
+  const [progressStatus, setProgressStatus] = useState('');
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,6 +24,7 @@ export default function App() {
     setError(null);
     setData(null);
     setGeneratedImages([]);
+    setProgressStatus('正在生成文章内容...');
 
     try {
       // Step 1: Generate Text Content
@@ -30,21 +32,37 @@ export default function App() {
       setData(content);
       setIsLoading(false);
 
-      // Step 2: Generate Images
+      // Step 2: Generate Images Sequentially
+      // Google Gemini Free Tier has strict rate limits. 
+      // We must process images one by one with a delay to avoid 429 errors.
       if (content.imagePrompts && content.imagePrompts.length > 0) {
         setLoadingImages(true);
-        // Limit to 3 images as requested
-        // FIX: Explicitly typed 'prompt' as string and 'err' as any to fix TS build error
-        const imagePromises = content.imagePrompts.slice(0, 3).map((prompt: string) => 
-           generateIllustration(prompt).catch((err: any) => {
-             console.error("图片生成失败:", prompt, err);
-             return null; 
-           })
-        );
+        const validImages: string[] = [];
+        const promptsToUse = content.imagePrompts.slice(0, 3); // Max 3 images
 
-        const results = await Promise.all(imagePromises);
-        setGeneratedImages(results.filter((img): img is string => img !== null));
+        for (const [index, prompt] of promptsToUse.entries()) {
+            setProgressStatus(`正在绘制第 ${index + 1}/${promptsToUse.length} 张图片...`);
+            
+            try {
+                // Add a 5-second delay between requests to be safe on Render
+                if (index > 0) {
+                    await new Promise(resolve => setTimeout(resolve, 5000));
+                }
+                
+                const img = await generateIllustration(prompt);
+                if (img) {
+                    validImages.push(img);
+                    // Update state progressively so user sees images as they arrive
+                    setGeneratedImages(prev => [...prev, img]);
+                }
+            } catch (err) {
+                console.warn(`Failed to generate image ${index + 1}:`, err);
+                // Continue to next image even if one fails
+            }
+        }
+        
         setLoadingImages(false);
+        setProgressStatus('');
       }
 
     } catch (err: any) {
@@ -52,6 +70,7 @@ export default function App() {
       setError(err.message || "生成内容时发生错误。");
       setIsLoading(false);
       setLoadingImages(false);
+      setProgressStatus('');
     }
   };
 
@@ -65,23 +84,21 @@ export default function App() {
       const targetUrl = redirectUrl.trim();
       
       // Generate a clean slug for filenames (e.g., "My Title" -> "my-title")
-      // This makes image filenames standard and SEO friendly
       const fileSlug = docTitle
         .toLowerCase()
-        .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-') // Allow Chinese characters and alphanumeric
+        .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-') 
         .replace(/^-+|-+$/g, '') || 'image';
 
       // --- 1. IMAGES ---
-      // Map to store new filenames for reference in HTML/MD
       const imageFilenames: string[] = [];
 
       if (generatedImages.length > 0) {
         generatedImages.forEach((imgDataUrl, idx) => {
-           // New naming convention: slug-index.png (e.g., ai-trends-1.png)
+           // Naming convention: slug-index.png (e.g., ai-trends-1.png)
            const fileName = `${fileSlug}-${idx + 1}.png`; 
            imageFilenames.push(fileName);
-           const data = imgDataUrl.split(',')[1];
-           zip.file(fileName, data, {base64: true});
+           const base64Data = imgDataUrl.split(',')[1];
+           zip.file(fileName, base64Data, {base64: true});
         });
       }
 
@@ -112,7 +129,6 @@ export default function App() {
     </noscript>
 
     <article class="max-w-3xl mx-auto px-4 py-12 md:py-16">
-        <!-- Title strictly uses user input and links to redirectUrl -->
         <header class="text-center mb-12">
             <h1 class="text-3xl md:text-5xl font-extrabold text-gray-900 mb-6 leading-tight">
                 <a href="${targetUrl}" class="hover:text-blue-600 transition-colors">
@@ -123,7 +139,6 @@ export default function App() {
             <p class="text-xl text-gray-600 leading-relaxed font-light">${data.introduction}</p>
         </header>
         
-        <!-- Image Grid -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12">
             ${imageFilenames.map((fileName, i) => `
             <figure class="rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
@@ -132,7 +147,6 @@ export default function App() {
             `).join('')}
         </div>
 
-        <!-- Content -->
         <div class="prose prose-lg prose-blue max-w-none text-gray-700">
             ${data.sections.map(s => `
             <div class="mb-10">
@@ -142,7 +156,6 @@ export default function App() {
             `).join('')}
         </div>
 
-        <!-- Conclusion -->
         <footer class="mt-16 pt-8 border-t border-gray-200">
             <div class="bg-blue-50 rounded-2xl p-8 text-center">
                 <h2 class="text-xl font-bold text-blue-900 mb-3">总结</h2>
@@ -168,7 +181,6 @@ export default function App() {
       
       data.sections.forEach((section, idx) => {
         readmeContent += `## ${section.heading}\n\n${section.content}\n\n`;
-        // Insert subsequent images if available
         if (imageFilenames.length > idx + 1) {
             readmeContent += `![${docTitle} ${idx + 2}](./${imageFilenames[idx + 1]})\n\n`;
         }
@@ -177,11 +189,11 @@ export default function App() {
       zip.file("README.md", readmeContent);
 
       // --- 4. EXTRAS ---
-      // Full MIT License
+      // Full MIT License (Standard)
       const currentYear = new Date().getFullYear();
       const fullLicense = `MIT License
 
-Copyright (c) ${currentYear} Generated via AI Content Generator
+Copyright (c) ${currentYear} Generated via AI Site Generator
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -210,7 +222,6 @@ SOFTWARE.`;
       const content = await zip.generateAsync({type:"blob"});
       const link = document.createElement('a');
       link.href = URL.createObjectURL(content);
-      // Clean filename for the zip itself
       link.download = `${fileSlug}.zip`;
       document.body.appendChild(link);
       link.click();
@@ -226,7 +237,7 @@ SOFTWARE.`;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-slate-50 to-blue-50 flex flex-col relative overflow-hidden">
-      {/* Decorative Background Elements */}
+      {/* Decorative Background */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
         <div className="absolute top-[-10%] right-[-5%] w-96 h-96 bg-brand-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse-slow"></div>
         <div className="absolute bottom-[-10%] left-[-5%] w-96 h-96 bg-accent-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse-slow" style={{animationDelay: '1s'}}></div>
@@ -312,7 +323,7 @@ SOFTWARE.`;
                   {isLoading ? (
                     <>
                       <Loader2 className="w-6 h-6 animate-spin" />
-                      <span>AI 正在思考与创作...</span>
+                      <span>{progressStatus || "AI 正在思考与创作..."}</span>
                     </>
                   ) : (
                     <>
@@ -349,7 +360,9 @@ SOFTWARE.`;
                 </div>
                 <div className="flex-1 text-left">
                     <div className="font-bold text-base">下载项目 ZIP</div>
-                    <div className="text-xs text-slate-300">包含 HTML, README & 图片</div>
+                    <div className="text-xs text-slate-300">
+                        {loadingImages ? `正在生成配图... ${generatedImages.length}/3` : '准备就绪 - 包含 HTML, README & 图片'}
+                    </div>
                 </div>
                 <Download className="w-5 h-5 text-slate-400 group-hover:text-white transition-colors" />
              </button>
