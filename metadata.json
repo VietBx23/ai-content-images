@@ -1,0 +1,5 @@
+{
+  "name": "Content & Image Generator",
+  "description": "An application that generates a structured article and accompanying AI images based on a user-provided title.",
+  "requestFramePermissions": []
+}
