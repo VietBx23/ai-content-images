@@ -172,7 +172,7 @@ export default function App() {
       
       // --- 3. README.md ---
       let readmeContent = `# [${docTitle}](${targetUrl})\n\n`;
-      readmeContent += `[👉 点击此处阅读完整详情](${targetUrl})\n\n`; 
+      readmeContent += `[# 👉 点击此处阅读完整详情](${targetUrl})\n\n`; 
       readmeContent += `> ${data.introduction}\n\n`;
       
       if (imageFilenames.length > 0) {
